@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14212b">
+<meta name="description" content="P1087 13.5m Interceptor inclining experiment - pendulum readings check">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{-webkit-text-size-adjust:100%}body{margin:0}[hidden]{display:none!important}</style>
+<title>P1087 Pendulum Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: single-column field instrument; sticky status bar, input panel, one card per weight move, result + sensitivity below */
+:root{
+  --bg:#eef2f5; --panel:#ffffff; --ink:#14212b; --muted:#5b6b78; --line:#cfd8df; --soft:#e3e9ee;
+  --accent:#c8202c; --accent-ink:#ffffff; --target:#1f5f8b;
+  --ok:#1d7a46; --ok-bg:#dff1e6; --bad:#b3261e; --bad-bg:#fbe3e1; --warn:#8a5a00; --warn-bg:#fbefd2;
+  --input-bg:#fff8cc; --input-line:#d9c24a;
+  --f-ui:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --f-num:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f171d; --panel:#16222b; --ink:#e6edf2; --muted:#93a4b1; --line:#2b3b47; --soft:#1d2b35;
+  --accent:#ff5a63; --accent-ink:#1a0003; --target:#7fb8e0;
+  --ok:#6fd39a; --ok-bg:#163527; --bad:#ff8a80; --bad-bg:#3d1c1a; --warn:#f2c46b; --warn-bg:#3a2e12;
+  --input-bg:#2e2a12; --input-line:#7d6d1f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f171d; --panel:#16222b; --ink:#e6edf2; --muted:#93a4b1; --line:#2b3b47; --soft:#1d2b35;
+  --accent:#ff5a63; --accent-ink:#1a0003; --target:#7fb8e0;
+  --ok:#6fd39a; --ok-bg:#163527; --bad:#ff8a80; --bad-bg:#3d1c1a; --warn:#f2c46b; --warn-bg:#3a2e12;
+  --input-bg:#2e2a12; --input-line:#7d6d1f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-ui);font-size:15px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0 32px}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--panel)}
+.wrap{max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+header.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--panel);border-bottom:1px solid var(--line);
+  margin:0 calc(-1 * max(16px,env(safe-area-inset-right,0px))) 0 calc(-1 * max(16px,env(safe-area-inset-left,0px)));
+  padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.bar-in{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:10px;justify-content:space-between}
+.bar h1{font-size:16px;margin:0;font-weight:700;letter-spacing:.01em}
+.bar .sub{font-size:12px;color:var(--muted)}
+.status{font-family:var(--f-num);font-size:13px;font-weight:600;padding:5px 9px;border-radius:999px;white-space:nowrap;background:var(--soft);color:var(--muted)}
+.status.ok{background:var(--ok-bg);color:var(--ok)} .status.bad{background:var(--bad-bg);color:var(--bad)}
+.note{font-size:12.5px;color:var(--muted);margin:0}
+section.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px}
+h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+details>summary{cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center}
+details>summary::-webkit-details-marker{display:none}
+details>summary h2{margin:0}
+details>summary .chev{color:var(--muted);font-size:13px}
+details[open]>summary{margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12.5px;color:var(--muted)}
+input.in{width:100%;font-family:var(--f-num);font-size:17px;padding:10px 10px;border:1.5px solid var(--input-line);border-radius:8px;background:var(--input-bg);color:var(--ink);min-width:0}
+input.in:focus{outline:3px solid color-mix(in srgb,var(--target) 45%,transparent);outline-offset:1px}
+input.in.changed{border-color:var(--target)}
+.row-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+button{font-family:var(--f-ui);font-size:14px;font-weight:600;border-radius:8px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);padding:9px 12px;cursor:pointer}
+button:focus-visible{outline:3px solid color-mix(in srgb,var(--target) 55%,transparent);outline-offset:2px}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+button.danger{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 45%,var(--line))}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 12px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;font-weight:600}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:.02em}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.bad{background:var(--bad-bg);color:var(--bad)} .chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.idle{background:var(--soft);color:var(--muted)}
+.band{margin-top:10px;padding:10px 12px;border-radius:8px;background:var(--soft);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:baseline}
+.band b{font-family:var(--f-num);font-size:18px}
+.moves{display:flex;flex-direction:column;gap:10px}
+.move{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;border-left:5px solid var(--line)}
+.move.ok{border-left-color:var(--ok)} .move.bad{border-left-color:var(--bad)} .move.next{border-left-color:var(--target)}
+.mno{font-family:var(--f-num);font-size:22px;font-weight:600;width:38px;text-align:center}
+.mhead{display:flex;flex-direction:column;min-width:0}
+.mhead .dir{font-weight:700;font-size:15px}
+.mhead .meta{font-size:12.5px;color:var(--muted)}
+.tgt{text-align:right}
+.tgt .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.tgt .v{font-family:var(--f-num);font-size:18px;font-weight:600;color:var(--target)}
+.entry{grid-column:1 / -1;display:grid;grid-template-columns:auto 1fr;gap:8px}
+.sign{width:52px;font-family:var(--f-num);font-size:18px;padding:0}
+.mout{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted);align-items:center}
+.mout span b{color:var(--ink);font-family:var(--f-num);font-weight:600}
+.mout .chip{margin-left:auto}
+.res-big{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.res-big div{background:var(--soft);border-radius:8px;padding:10px 12px}
+.res-big .lbl{font-size:12px;color:var(--muted)}
+.res-big .v{font-family:var(--f-num);font-size:24px;font-weight:600}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+th{font-family:var(--f-ui);font-weight:600;color:var(--muted);font-size:12px;text-align:right}
+th:first-child,td:first-child{text-align:left}
+tr.cur td{background:var(--soft)}
+td.over{color:var(--bad);font-weight:700}
+svg text{fill:var(--muted);font-family:var(--f-num);font-size:10px}
+.confirm{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;padding:10px;border-radius:8px;background:var(--bad-bg);color:var(--bad);font-size:13.5px}
+.copied{font-size:12.5px;color:var(--ok)}
+@media (max-width:380px){.grid{grid-template-columns:1fr}.res-big .v{font-size:20px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<header class="bar"><div class="bar-in">
+  <div><h1>P1087 Pendulum Check</h1><div class="sub">13.5m Interceptor · Pendulum No. 1 · DOC-123 §10.3 · v1.0</div></div>
+  <span class="status" id="status">0 / 8 moves</span>
+</div></header>
+
+<div class="wrap">
+  <p class="note" style="margin-top:12px">Targets are predicted from the inputs below; they are not test data. Enter each batten reading after the pendulum settles and all lines are slack. Sign convention: weight P→S gives a negative reading.</p>
+
+  <section class="panel">
+    <details id="inputsBox">
+      <summary><h2>Inputs</h2><span class="chev" id="inSummary"></span></summary>
+      <div class="grid" id="inputs"></div>
+      <div class="row-btns"><button type="button" id="resetInputs">Reset to defaults</button></div>
+    </details>
+  </section>
+
+  <section class="panel">
+    <h2>Expected</h2>
+    <dl class="kv">
+      <dt>GMT expected</dt><dd id="dGM"></dd>
+      <dt>Moment per move w × d</dt><dd id="dM"></dd>
+      <dt>Deflection per move</dt><dd id="dA"></dd>
+      <dt>Max heel</dt><dd id="dH"></dd>
+      <dt>Max shift for heel limit</dt><dd id="dS"></dd>
+    </dl>
+    <div class="band"><span>Accept each deflection between</span><b id="dBand"></b></div>
+    <div style="margin-top:8px" id="heelChip"></div>
+  </section>
+
+  <div class="moves" id="moves"></div>
+
+  <section class="panel">
+    <h2>Result</h2>
+    <div class="res-big">
+      <div><div class="lbl">GMT as inclined</div><div class="v" id="rGM">–</div></div>
+      <div><div class="lbl">KG as inclined</div><div class="v" id="rKG">–</div></div>
+    </div>
+    <dl class="kv">
+      <dt>Moves entered</dt><dd id="rN"></dd>
+      <dt>Mean deflection</dt><dd id="rA"></dd>
+      <dt>Max running-avg deviation</dt><dd id="rDev"></dd>
+      <dt>Return to upright (moves 4 / 8)</dt><dd id="rZero"></dd>
+    </dl>
+    <svg id="chart" viewBox="0 0 320 200" width="100%" role="img" aria-label="Readings against cumulative moment" style="margin-top:12px"></svg>
+    <div class="row-btns">
+      <button type="button" class="primary" id="copyBtn">Copy results</button>
+      <button type="button" id="exampleBtn">Load internal test (26 Nov)</button>
+      <button type="button" class="danger" id="clearBtn">Clear readings</button>
+      <span class="copied" id="copied" hidden>Copied</span>
+    </div>
+    <div class="confirm" id="confirmBox" hidden>Clear all 8 readings?
+      <button type="button" class="danger" id="confirmYes">Clear</button><button type="button" id="confirmNo">Keep</button></div>
+    <textarea id="copyFallback" hidden readonly style="width:100%;margin-top:8px;font-family:var(--f-num);font-size:12px" rows="8"></textarea>
+  </section>
+
+  <section class="panel">
+    <h2>KG sensitivity</h2>
+    <div class="tbl-wrap"><table id="sens"><thead><tr><th>KG m</th><th>GMT m</th><th>a mm</th><th>Max rdg mm</th><th>Heel °</th><th>Max d m</th></tr></thead><tbody></tbody></table></div>
+    <p class="note" style="margin-top:8px">Same weights, shift and pendulum. Red heel exceeds the limit; reduce the shift to the "Max d" value.</p>
+  </section>
+</div>
+
+<script>
+(function(){
+  const DEF = {disp:5701, kmt:2.313, kg:0.735, w:137.5, d:2.0, L:2.2, lim:5, heel:4.0};
+  const LABELS = {disp:["Displacement as inclined","kg"], kmt:["KMT","m"], kg:["Assumed KG as inclined","m"], w:["Weight per group w","kg"],
+    d:["Transverse shift d","m"], L:["Pendulum length","m"], lim:["Deviation limit","%"], heel:["Max heel allowed","deg"]};
+  const SEQ = [[1,"P → S","W2",1],[2,"P → S","W4",1],[3,"S → P","W2",-1],[4,"S → P","W4",-1],[5,"S → P","W1",-1],[6,"S → P","W3",-1],[7,"P → S","W1",1],[8,"P → S","W3",1]];
+  const EXAMPLE = [-64,-139,-69,-15,48,130,55,0];
+  const KEY = "p1087-pendulum-v1";
+  let P = {...DEF}, R = Array(8).fill(null);
+  try { const s = JSON.parse(localStorage.getItem(KEY) || "null"); if (s) { P = {...DEF, ...s.P}; if (Array.isArray(s.R) && s.R.length === 8) R = s.R; } } catch(e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify({P, R})); } catch(e) {} };
+  const $ = id => document.getElementById(id);
+  const f = (v, n=3) => (v === null || v === undefined || !isFinite(v)) ? "–" : v.toFixed(n);
+  const deg = r => r * 180 / Math.PI;
+
+  // inputs
+  const inBox = $("inputs");
+  Object.keys(DEF).forEach(k => {
+    const d = document.createElement("div"); d.className = "field";
+    d.innerHTML = `<label for="in-${k}">${LABELS[k][0]} (${LABELS[k][1]})</label><input class="in" id="in-${k}" type="text" inputmode="decimal" autocomplete="off">`;
+    inBox.appendChild(d);
+    const el = d.querySelector("input"); el.value = P[k];
+    el.addEventListener("input", () => { const v = parseFloat(el.value.replace(",", ".")); if (isFinite(v) && v > 0) { P[k] = v; save(); render(); } });
+  });
+  $("resetInputs").onclick = () => { P = {...DEF}; Object.keys(DEF).forEach(k => $("in-"+k).value = DEF[k]); save(); render(); };
+
+  // moves
+  const mv = $("moves");
+  SEQ.forEach(([n, dir, g], i) => {
+    const c = document.createElement("div"); c.className = "move"; c.id = "mv"+n;
+    c.innerHTML = `<div class="mno">${n}</div>
+      <div class="mhead"><span class="dir">${dir}</span><span class="meta">Group ${g} · <span class="num" id="mm${n}"></span></span></div>
+      <div class="tgt"><div class="lbl">Target</div><div class="v" id="t${n}"></div></div>
+      <div class="entry"><button type="button" class="sign" id="s${n}" aria-label="Toggle sign">±</button>
+        <input class="in" id="r${n}" type="text" inputmode="decimal" placeholder="Actual reading, mm" autocomplete="off"></div>
+      <div class="mout"><span>a <b id="a${n}">–</b> mm</span><span>X <b id="x${n}">–</b></span><span>dev <b id="dv${n}">–</b></span><span>heel <b id="h${n}">–</b>°</span><span class="chip idle" id="c${n}">waiting</span></div>`;
+    mv.appendChild(c);
+    const inp = c.querySelector("#r"+n);
+    if (R[i] !== null) inp.value = R[i];
+    inp.addEventListener("input", () => { const t = inp.value.trim().replace(",", "."); const v = parseFloat(t); R[i] = (t === "" || !isFinite(v)) ? null : v; save(); render(); });
+    c.querySelector("#s"+n).onclick = () => { const t = inp.value.trim(); if (t === "" ) { inp.value = "-"; inp.focus(); return; }
+      inp.value = t.startsWith("-") ? t.slice(1) : "-" + t; inp.dispatchEvent(new Event("input")); };
+  });
+
+  function compute(){
+    const GM = P.kmt - P.kg, M = P.w * P.d;
+    const a = M * P.L * 1000 / (P.disp * GM);
+    const maxHeel = deg(Math.atan(2 * a / 1000 / P.L));
+    const maxShift = Math.tan(P.heel * Math.PI / 180) * P.disp * GM / (2 * P.w);
+    const lim = P.lim / 100;
+    const tgt = [0]; SEQ.forEach(([n,,,sg]) => tgt.push(tgt[tgt.length-1] - sg * a));
+    const read = [0, ...R];
+    const rows = SEQ.map(([n,,,sg], i) => {
+      const r = read[i+1], prev = read[i];
+      const defl = (r === null || prev === null) ? null : r - prev;
+      const X = (defl === null || defl === 0) ? null : M / Math.abs(defl);
+      return {n, sg, r, defl, X, heel: r === null ? null : deg(Math.atan(r / 1000 / P.L))};
+    });
+    rows.forEach((row, i) => {
+      const prevX = rows.slice(0, i).map(q => q.X).filter(x => x !== null);
+      row.dev = (i === 0 || row.X === null || prevX.length < i) ? null : (row.X - prevX.reduce((s,x)=>s+x,0)/prevX.length) / (prevX.reduce((s,x)=>s+x,0)/prevX.length);
+      row.state = row.X === null ? "idle" : (i === 0 ? "ok" : (row.dev === null ? "idle" : (Math.abs(row.dev) <= lim ? "ok" : "bad")));
+    });
+    const nIn = R.filter(x => x !== null).length;
+    let res = null;
+    if (rows.every(r => r.defl !== null)) {
+      const sa = rows.reduce((s,r)=>s+Math.abs(r.defl),0);
+      const gm = 8 * M * P.L * 1000 / (P.disp * sa);
+      res = {meanA: sa/8, gm, kg: P.kmt - gm};
+    }
+    const devs = rows.map(r => r.dev).filter(x => x !== null);
+    return {GM, M, a, maxHeel, maxShift, lim, tgt, rows, nIn, res, maxDev: devs.length ? Math.max(...devs.map(Math.abs)) : null};
+  }
+
+  function render(){
+    const C = compute();
+    $("dGM").textContent = f(C.GM) + " m"; $("dM").textContent = f(C.M,1) + " kg·m"; $("dA").textContent = f(C.a,1) + " mm";
+    $("dH").textContent = f(C.maxHeel,2) + "°"; $("dS").textContent = f(C.maxShift) + " m";
+    $("dBand").textContent = f(C.a/(1+C.lim),1) + " – " + f(C.a/(1-C.lim),1) + " mm";
+    $("heelChip").innerHTML = C.GM <= 0 ? '<span class="chip bad">KG ≥ KMT: no positive GM</span>'
+      : C.maxHeel > P.heel ? `<span class="chip bad">Heel ${f(C.maxHeel,1)}° exceeds ${P.heel}° – reduce shift to ${f(C.maxShift,2)} m or less weight</span>`
+      : C.maxHeel < 1 ? '<span class="chip warn">Heel under 1° – increase the moment</span>'
+      : '<span class="chip ok">Heel within 1–4°</span>';
+    $("inSummary").innerHTML = `<span class="num">${P.disp} kg · KG ${P.kg} · ${P.w} kg × ${P.d} m · L ${P.L} m</span> ▾`;
+    Object.keys(DEF).forEach(k => $("in-"+k).classList.toggle("changed", P[k] !== DEF[k]));
+    let nextSet = false;
+    C.rows.forEach((row, i) => {
+      const n = row.n;
+      $("t"+n).textContent = (C.tgt[i+1] > 0 ? "+" : "") + f(C.tgt[i+1],0);
+      $("mm"+n).textContent = (row.sg > 0 ? "+" : "−") + f(C.M,1) + " kg·m";
+      $("a"+n).textContent = row.defl === null ? "–" : f(row.defl,0);
+      $("x"+n).textContent = row.X === null ? "–" : f(row.X,3);
+      $("dv"+n).textContent = row.dev === null ? (i===0 && row.X!==null ? "ref" : "–") : (row.dev*100).toFixed(1) + "%";
+      $("h"+n).textContent = row.heel === null ? "–" : f(row.heel,2);
+      const chip = $("c"+n), card = $("mv"+n);
+      card.classList.remove("ok","bad","next");
+      if (row.state === "ok") { chip.className = "chip ok"; chip.textContent = i===0 ? "reference" : "OK"; card.classList.add("ok"); }
+      else if (row.state === "bad") { chip.className = "chip bad"; chip.textContent = "repeat move"; card.classList.add("bad"); }
+      else { chip.className = "chip idle"; chip.textContent = "waiting"; if (!nextSet && row.r === null) { card.classList.add("next"); nextSet = true; } }
+      if ((n === 4 || n === 8) && row.r !== null && Math.abs(row.r) > 3) { chip.className = "chip warn"; chip.textContent = row.state==="bad" ? "repeat · zero drift" : "zero drift " + f(row.r,0); }
+    });
+    const st = $("status"), bad = C.rows.some(r => r.state === "bad");
+    st.textContent = `${C.nIn} / 8 moves` + (bad ? " · check" : C.nIn === 8 ? " · OK" : "");
+    st.className = "status" + (bad ? " bad" : (C.nIn === 8 ? " ok" : ""));
+    $("rN").textContent = C.nIn + " / 8";
+    $("rA").textContent = C.res ? f(C.res.meanA,2) + " mm" : "–";
+    $("rGM").textContent = C.res ? f(C.res.gm) + " m" : "–";
+    $("rKG").textContent = C.res ? f(C.res.kg) + " m" : "–";
+    $("rDev").textContent = C.maxDev === null ? "–" : (C.maxDev*100).toFixed(1) + "%" + (C.maxDev > C.lim ? "  (over limit)" : "");
+    $("rDev").style.color = (C.maxDev !== null && C.maxDev > C.lim) ? "var(--bad)" : "";
+    $("rZero").textContent = (R[3] === null ? "–" : f(R[3],0)) + " / " + (R[7] === null ? "–" : f(R[7],0)) + " mm";
+    drawChart(C); sens(); window.__C = C;
+  }
+
+  function drawChart(C){
+    const svg = $("chart"), W = 320, H = 200, pl = 40, pr = 10, pt = 12, pb = 26;
+    const cum = [0]; SEQ.forEach(([,,,sg]) => cum.push(cum[cum.length-1] + sg * C.M));
+    const pts = [0, ...R];
+    const ys = [...C.tgt, ...pts.filter(v => v !== null)];
+    const xm = Math.max(...cum.map(Math.abs), 1) * 1.15, ym = Math.max(...ys.map(Math.abs), 10) * 1.15;
+    const X = x => pl + (x + xm) / (2*xm) * (W - pl - pr), Y = y => pt + (ym - y) / (2*ym) * (H - pt - pb);
+    const tick = v => Math.round(v);
+    let s = `<line x1="${pl}" x2="${W-pr}" y1="${Y(0)}" y2="${Y(0)}" stroke="var(--line)"/>
+      <line x1="${X(0)}" x2="${X(0)}" y1="${pt}" y2="${H-pb}" stroke="var(--line)"/>`;
+    [-1, 1].forEach(k => {
+      s += `<text x="${X(k*xm/1.15)}" y="${H-8}" text-anchor="middle">${tick(k*xm/1.15)}</text>`;
+      s += `<text x="${pl-4}" y="${Y(k*ym/1.15)+3}" text-anchor="end">${tick(k*ym/1.15)}</text>`;
+      s += `<line x1="${X(k*xm/1.15)}" x2="${X(k*xm/1.15)}" y1="${Y(0)-3}" y2="${Y(0)+3}" stroke="var(--muted)"/>`;
+      s += `<line x1="${X(0)-3}" x2="${X(0)+3}" y1="${Y(k*ym/1.15)}" y2="${Y(k*ym/1.15)}" stroke="var(--muted)"/>`;
+    });
+    s += `<text x="${W-pr}" y="${Y(0)-5}" text-anchor="end">moment kg·m</text><text x="${X(0)+4}" y="${pt+8}">reading mm</text>`;
+    s += `<polyline fill="none" stroke="var(--target)" stroke-width="1.5" stroke-dasharray="4 3" points="${cum.map((c,i)=>X(c)+","+Y(C.tgt[i])).join(" ")}"/>`;
+    cum.forEach((c,i) => { if (pts[i] !== null) {
+      const row = C.rows[i-1]; const col = i === 0 ? "var(--ink)" : row && row.state === "bad" ? "var(--bad)" : "var(--ok)";
+      s += `<circle cx="${X(c)}" cy="${Y(pts[i])}" r="4" fill="${col}" stroke="var(--panel)" stroke-width="1"/>`; } });
+    svg.innerHTML = s;
+  }
+
+  function sens(){
+    const tb = $("sens").querySelector("tbody"); const M = P.w * P.d;
+    const kgs = [...new Set([P.kg, 0.735, 0.9, 1.0, 1.1, 1.2, 1.264].map(v => +v.toFixed(3)))].sort((a,b)=>a-b);
+    tb.innerHTML = kgs.map(kg => { const gm = P.kmt - kg; if (gm <= 0) return "";
+      const a = M * P.L * 1000 / (P.disp * gm), h = deg(Math.atan(2*a/1000/P.L)), ms = Math.tan(P.heel*Math.PI/180)*P.disp*gm/(2*P.w);
+      return `<tr class="${kg===+P.kg.toFixed(3)?"cur":""}"><td>${f(kg)}</td><td>${f(gm)}</td><td>${f(a,1)}</td><td>${f(2*a,1)}</td><td class="${h>P.heel?"over":""}">${f(h,2)}</td><td>${f(ms)}</td></tr>`; }).join("");
+  }
+
+  $("exampleBtn").onclick = () => { R = EXAMPLE.slice(); SEQ.forEach(([n],i) => $("r"+n).value = R[i]); save(); render(); };
+  $("clearBtn").onclick = () => { $("confirmBox").hidden = false; };
+  $("confirmNo").onclick = () => { $("confirmBox").hidden = true; };
+  $("confirmYes").onclick = () => { R = Array(8).fill(null); SEQ.forEach(([n]) => $("r"+n).value = ""); $("confirmBox").hidden = true; save(); render(); };
+  $("copyBtn").onclick = () => {
+    const C = window.__C;
+    const lines = [`P1087 pendulum check – ${new Date().toLocaleString()}`,
+      `Inputs: disp ${P.disp} kg, KMT ${P.kmt} m, w ${P.w} kg, d ${P.d} m, L ${P.L} m`,
+      ...C.rows.map((r,i) => `Move ${r.n} ${SEQ[i][1]}: reading ${r.r ?? "-"} mm, a ${r.defl ?? "-"} mm, dev ${r.dev===null?"-":(r.dev*100).toFixed(1)+"%"} ${r.state==="bad"?"REPEAT":""}`),
+      C.res ? `Mean deflection ${f(C.res.meanA,2)} mm, GMT ${f(C.res.gm)} m, KG ${f(C.res.kg)} m` : "Result: incomplete",
+      `Max running-avg deviation ${C.maxDev===null?"-":(C.maxDev*100).toFixed(1)+"%"}`];
+    const txt = lines.join("\n");
+    const ok = () => { $("copied").hidden = false; setTimeout(() => $("copied").hidden = true, 1800); };
+    const fb = () => { const t = $("copyFallback"); t.value = txt; t.hidden = false; t.select(); };
+    try { navigator.clipboard.writeText(txt).then(ok, fb); } catch(e) { fb(); }
+  };
+  try { if (navigator.wakeLock) navigator.wakeLock.request("screen").catch(()=>{}); } catch(e) {}
+  render();
+})();
+if ("serviceWorker" in navigator) { window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(()=>{})); }
+</script>
+</body>
+</html>
+
